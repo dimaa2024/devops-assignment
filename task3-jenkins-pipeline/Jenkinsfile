@@ -1,0 +1,27 @@
+pipeline {
+    agent any
+    environment {
+        AWS_CREDENTIALS = credentials('aws-credentials')
+        DOCKER_CREDENTIALS = credentials('docker-credentials')
+    }
+    stages {
+        stage('Terraform Apply') {
+            steps {
+                sh 'terraform -chdir=../task1-terraform-aws init'
+                sh 'terraform -chdir=../task1-terraform-aws apply -auto-approve'
+            }
+        }
+        stage('Docker Build and Push') {
+            steps {
+                sh 'docker build -t $AWS_CREDENTIALS.registry/nginx:latest .'
+                sh 'docker login -u $DOCKER_CREDENTIALS_USR -p $DOCKER_CREDENTIALS_PSW'
+                sh 'docker push $AWS_CREDENTIALS.registry/nginx:latest'
+            }
+        }
+        stage('Deploy to EKS') {
+            steps {
+                sh 'helm upgrade --install nginx ../task2-k8s-eks/helm-chart'
+            }
+        }
+    }
+}
